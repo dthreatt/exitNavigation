@@ -1,0 +1,9 @@
+bool accumulateFlag
+---
+float32 x
+float32 y
+float32 probability
+nav_msgs/OccupancyGrid segmented
+nav_msgs/OccupancyGrid heat
+int16 goalGridx
+int16 goalGridy
