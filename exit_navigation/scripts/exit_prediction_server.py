@@ -262,12 +262,12 @@ def handle_exit_request(self):
 
     #locate robot, set up transform listener
     listener = tf.TransformListener()
-    listener.waitForTransform('/base_link', '/map',rospy.Time(),rospy.Duration(3))
-    (trans,rot) = listener.lookupTransform('/base_link', '/map', rospy.Time())
+    listener.waitForTransform('/map', '/base_link',rospy.Time(),rospy.Duration(3))
+    (trans,rot) = listener.lookupTransform('/map', '/base_link', rospy.Time(0))
     print(trans,"Robot position (meters)")
-    trans[0] = -1*trans[0]
-    trans[1] = -1*trans[1]
-    print(trans,"Robot position corrected (meters)")
+    #trans[0] = -1*trans[0]
+    #trans[1] = -1*trans[1]
+    #print(trans,"Robot position corrected (meters)") #Correction deemed wrong
     #roboGrid is the robot's position on the map; found using the map's top left corner defined in meters from the origin
     #compared to the robots position in meters from the origin,
     #resulting in the position known in a number of grid cells from the top left corner of the map
@@ -365,15 +365,15 @@ def handle_exit_request(self):
     plt.draw()
     plt.pause(0.00000001)
     
-    # plt.show()
-
-
-    plt.figure(2)
-    plt.imshow(laser_input[0,:,:],cmap="gray")
-    plt.colorbar()
-    plt.draw()
-    plt.pause(0.0000000000000000000001)
     plt.show()
+
+
+    #plt.figure(2)
+    #plt.imshow(laser_input[0,:,:],cmap="gray")
+    #plt.colorbar()
+    #plt.draw()
+    #plt.pause(0.0000000000000000000001)
+    #plt.show()
 
     #saveDir='home/maps/'
     #if not os.path.exists(saveDir):

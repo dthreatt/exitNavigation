@@ -28,22 +28,22 @@ def within_bound(p,shape,r=0):
     return bool if p is single point | return bool matrix (vector) if p: [y;x] where y & x are matrix (vector) """
     return (p[0] >= r) & (p[0] < shape[0]-r) & (p[1] >= r) & (p[1] < shape[1]-r)
 
-def accumulate_non_exits(nonExitMap,local_world,pose,exit_threshold=12):
-    window_halfsize = local_world.shape[1]//2
-    print(local_world.shape,"local world shape")
-    print(window_halfsize,"window halfsize")
-    world = np.ones((local_world.shape[1]*2,local_world.shape[2]*2))*map_color['uncertain']
-    world[window_halfsize:window_halfsize+local_world.shape[1],
-          window_halfsize:window_halfsize+local_world.shape[2]] = local_world
+def accumulate_non_exits(nonExitMap,world,pose,exit_threshold=12):
+    #window_halfsize = local_world.shape[1]//2
+    #print(local_world.shape,"local world shape")
+    #print(window_halfsize,"window halfsize")
+    #world = np.ones((352,352))*map_color['uncertain']
+    #world[window_halfsize:window_halfsize+local_world.shape[1],
+    #      window_halfsize:window_halfsize+local_world.shape[2]] = local_world
 
-    pose = [window_halfsize + pose[0],window_halfsize + pose[1],0]
+    #pose = [window_halfsize + pose[0],window_halfsize + pose[1],0]
 
-    laser_fov = 60
+    laser_fov = 360
     laser_resol = 0.125
     angles_vect = np.arange(-laser_fov*0.5, laser_fov*0.5,step=laser_resol)
     angles_vect = angles_vect.reshape(angles_vect.shape[0], 1) # generate angles vector from -laser_angle/2 to laser_angle
     """ find the coord matrix that the laser cover """
-    angles= pose[2] + angles_vect
+    angles= angles_vect
     radius_vect= np.arange(exit_threshold+1)
     radius_vect= radius_vect.reshape(1, radius_vect.shape[0]) # generate radius vector of [0,1,2,...,laser_range]
     y_rangeCoordMat= pose[0] - np.matmul(np.sin(angles), radius_vect)
@@ -90,6 +90,8 @@ def accumulate_non_exits(nonExitMap,local_world,pose,exit_threshold=12):
     filled_tmp[filled_tmp==map_color['obstacle']] = exit_map_color['non-exit']
     filled_tmp[filled_tmp==map_color['free']] = exit_map_color['non-exit']
     nonExitMap[y_coord,x_coord] = filled_tmp[y_coord,x_coord]
+    values, counts = np.unique(nonExitMap, return_counts=True)
+    print(values, counts,"unique values of updated camera map in function")
     return nonExitMap
 
 def reset_cameraMap():
@@ -301,6 +303,8 @@ def exit_driven_path_plan(unet,laser_input_global,segmented_map,laser_input,came
     return laser_input,x_input,semantics_build,centroid_build,exit_build,exit_loc,prob,region_max_prob,region_avr_prob,exit_loc_nearest,Astar_traj,Astar_traj_remapped,Goalpoint,Astar_rplan_Flag, Astar_openSet_Flag
 
 cameraMap = reset_cameraMap()
+values, counts = np.unique(cameraMap, return_counts=True)
+print(values, counts,"unique values of created camera map")
 
 def handle_exit_request(req):
     #request map
@@ -320,12 +324,12 @@ def handle_exit_request(req):
 
     #locate robot, set up transform listener
     listener = tf.TransformListener()
-    listener.waitForTransform('/base_link', '/map',rospy.Time(),rospy.Duration(3))
-    (trans,rot) = listener.lookupTransform('/base_link', '/map', rospy.Time())
+    listener.waitForTransform('/map', '/base_link',rospy.Time(),rospy.Duration(3))
+    (trans,rot) = listener.lookupTransform('/map', '/base_link', rospy.Time(0))
     print(trans,"Robot position (meters)")
-    trans[0] = -1*trans[0]
-    trans[1] = -1*trans[1]
-    print(trans,"Robot position corrected (meters)")
+    #trans[0] = -1*trans[0]
+    #trans[1] = -1*trans[1]
+    #print(trans,"Robot position corrected (meters)") #correction removed because it was wrong and it had it right in the first place
     #roboGrid is the robot's position on the map; found using the map's top left corner defined in meters from the origin
     #compared to the robots position in meters from the origin,
     #resulting in the position known in a number of grid cells from the top left corner of the map
@@ -386,11 +390,24 @@ def handle_exit_request(req):
                 threshmap[0][i][j] = 0 #free [1]
             #laser_input[i][j][3] = 1 #camera/exit map not used
 
+    threshGlobal = np.zeros(np.shape(shaped_map))#removed 4th dimension with 4 channels (,4) or 3 channels, causing an error with x input @line 130
+    dim = np.shape(shaped_map)
+    for i in range(dim[0]): 
+        for j in range(dim[1]): 
+            if(shaped_map[i][j] == -1):# or (segmented_map[i][j] <= highThresh and segmented_map[i][j] >= lowThresh)):
+                threshGlobal[i][j] = 127 #unknown [0] 
+            elif(shaped_map[i][j] > highThresh):
+                threshGlobal[i][j] = 255 #obstacle [2]
+            else:
+                threshGlobal[i][j] = 0 #free [1]
+
     #if we have taken a picture (flag) update map
     print(req)
     if(req):
         global cameraMap
-        cameraMap = accumulate_non_exits(cameraMap,threshmap,roboGrid)
+        cameraMap = accumulate_non_exits(cameraMap,threshGlobal,roboGrid)
+        values, counts = np.unique(cameraMap, return_counts=True)
+        print(values, counts,"unique values of updated camera map")
         #changed reset camera map to create the map to be the same size as the gmapping map that way roboGrid can be used for the pose
         #got the gmapping map size by running the program and checking the printed output which was 352,352 which is slightly different from the expected 355,355
 
@@ -399,6 +416,9 @@ def handle_exit_request(req):
     for i in range(x_lower_lim,x_upper_lim): 
         for j in range(y_lower_lim,y_upper_lim): 
             camera_input[0][i-x_lower_lim][j-y_lower_lim] = cameraMap[i][j]
+    
+    values, counts = np.unique(camera_input, return_counts=True)
+    print(values, counts,"unique values of segmented camera map")
 
     #deep learning exit prediction
     vae_model_name = Conditional_New_VAE
@@ -444,6 +464,8 @@ def handle_exit_request(req):
     axs_astar[1].plot(exit_loc[0], exit_loc[1], "xr",markersize=6,label='exit est.')
     axs_astar[1].plot(exit_loc_nearest[0], exit_loc_nearest[1],"Dr",markersize=5,label='goal')
     axs_astar[1].plot(Goalpoint[0], Goalpoint[1],"or",markersize=5,label='goalUsed')
+    nonExitPoints = np.where(camera_input[0,:,:]==0)
+    axs_astar[0].plot(nonExitPoints[1][:],nonExitPoints[0][:],'ow',markersize=1,alpha=.25,label='non-exits')
     axs_astar[1].plot(64,64,'og',markersize=5)
     axs_astar[1].axis('off')
     axs_astar[0].legend(framealpha=1, frameon=True,ncol=1, prop={'size': 6},loc='lower right')

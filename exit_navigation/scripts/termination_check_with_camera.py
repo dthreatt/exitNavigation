@@ -4,11 +4,15 @@ import rospy
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseFeedback, MoveBaseResult
 from exit_navigation.srv import *
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, Odometry
 import std_msgs
 from std_msgs.msg import Int16
 from apriltag_ros.msg import AprilTagDetectionArray
 from geometry_msgs.msg import Twist
+from tf.transformations import euler_from_quaternion
+import math
+import numpy as np
+#from detec.py import PID, Jackal
 
 def setTagDetections(msg):
     global tag_detections
@@ -18,25 +22,52 @@ def getTagDetection():
     temp = tag_detections    
     return temp
 
+def setOdometry(msg):
+    global Odom 
+    Odom = msg.pose
+
+def getOdometry():
+    tempO = Odom
+    return tempO
+
 def findTag(timerMSG):
+    #create velocity command message and set up publisher
+    velocityCMD = Twist()
+    velocityCMD.angular.z = 1 #radians
+    velocity_pub = rospy.Publisher('cmd_vel',Twist,queue_size=1)
+    velocity_pub.publish(velocityCMD)
     detectedTag = getTagDetection()
-    if(detectedTag.detections != []):
-        detected_Distance = np.linalg.norm(np.asarray([detectedTag.detections.pose.pose.pose.position.x,detectedTag.detections.pose.pose.pose.position.y,detectedTag.detections.pose.pose.pose.position.z]))
+    if detectedTag.detections:
+        TagDistx = detectedTag.detections[0].pose.pose.pose.position.x #distance left or right of the camera
+        TagDisty = detectedTag.detections[0].pose.pose.pose.position.y
+        TagDistz = detectedTag.detections[0].pose.pose.pose.position.z #distance in front of the camera
+        detected_Distance = np.linalg.norm(np.asarray([TagDistx,TagDisty,TagDistz]))
         if(detected_Distance < 2):
-            #Use velocity commands to drive it to the tag
+            RobotO = getOdometry()
+            explicit_quat = [RobotO.pose.orientation.x,RobotO.pose.orientation.y,RobotO.pose.orientation.z,RobotO.pose.orientation.w]
+            (roll,pitch,yaw) = euler_from_quaternion(explicit_quat)
+            pose = (RobotO.pose.position.x,RobotO.pose.position.y,yaw)
+            clientExit = actionlib.SimpleActionClient('/move_base', MoveBaseAction)#might need (self.name+) which was in rrt
+            clientExit.wait_for_server()
+            goalpoint = MoveBaseGoal()
+            goalpoint.target_pose.header.stamp = rospy.Time.now()
+            goalpoint.target_pose.header.frame_id = 'map' #might want to change the frame.
+            goalpoint.target_pose.pose.orientation = RobotO.pose.orientation
+            goalpoint.target_pose.pose.position.x = (math.cos(yaw)*TagDistz - math.sin(yaw)*TagDistx) + pose[0]
+            goalpoint.target_pose.pose.position.y = (math.sin(yaw)*TagDistz + math.cos(yaw)*TagDistx) + pose[1]
+            clientExit.send_goal(goalpoint)
+            print("Exit found")
             rospy.signal_shutdown("Exit found. Terminating") #terminate
 
 def termination():
     rospy.init_node('termination_check', anonymous=True)
     
-    #subsribe to apriltag_detections
+    #subscribe to apriltag_detections
     rospy.Subscriber('tag_detections', AprilTagDetectionArray, setTagDetections)
-    #might need a pause, might be covered by the move base wait for server
 
-    #create velocity command message and set up publisher
-    velocityCMD = Twist()
-    velocityCMD.angular = 1 #radians
-    velocity_pub = rospy.Publisher('cnd_vel',Twist,queue_size=1)
+    #subscribe to the odometry
+    rospy.Subscriber('odometry/filtered', Odometry, setOdometry)
+    #might need a pause to fill data buffe but it might be covered by the move base wait for server
 
     #set up move base client
     client = actionlib.SimpleActionClient('/move_base', MoveBaseAction)#might need (self.name+) which was in rrt
@@ -48,9 +79,9 @@ def termination():
     threshold = 0.0
     if(threshold == 0):
         accumulate_flag = True
-        velocity_pub.publish(velocityCMD)
-        rospy.Timer(rospy.Duration(0.5),findTag)
-        rospy.sleep(7)#sleep?? want to let the timer run and the bot spin, but stop both after 7 seconds
+        Caller = rospy.Timer(rospy.Duration(0.2),findTag)
+        rospy.sleep(6.5)#sleep?? want to let the timer run and the bot spin, but stop both after 7 seconds
+        Caller.shutdown()
     else:
         accumulate_flag = False
     
@@ -92,16 +123,10 @@ def termination():
     client.send_goal(goalpoint)
     client.wait_for_result()
     if(probability > threshold):
-        detectedTag = getTagDetection()
-        if(detectedTag.detections != []):
-            detected_Distance = np.linalg.norm(np.asarray([detectedTag.detections.pose.pose.pose.position.x,detectedTag.detections.pose.pose.pose.position.y,detectedTag.detections.pose.pose.pose.position.z]))
-            if(detected_Distance < 2):
-                #get current pose
-                #move base goal = current position + detected relative pose
-                #client.send_goal(goalpoint)
-                rospy.signal_shutdown("Exit found. Terminating") #terminate
-        else:
-            accumulate_flag = True
+        accumulate_flag = True
+        Caller = rospy.Timer(rospy.Duration(0.2),findTag)
+        rospy.sleep(7)#sleep?? want to let the timer run and the bot spin, but stop both after 7 seconds
+        Caller.shutdown()
     else:
         accumulate_flag = False
 
@@ -130,16 +155,10 @@ def termination():
 
         client.wait_for_result()        
         if(probability > threshold):
-            detectedTag = getTagDetection()
-            if(detectedTag.detections != []):
-                detected_Distance = np.linalg.norm(np.asarray([detectedTag.detections.pose.pose.pose.position.x,detectedTag.detections.pose.pose.pose.position.y,detectedTag.detections.pose.pose.pose.position.z]))
-                if(detected_Distance < 2):
-                    #get current pose
-                    #move base goal = current position + detected relative pose
-                    #client.send_goal(goalpoint)
-                    rospy.signal_shutdown("Exit found. Terminating") #terminate
-            else:
-                accumulate_flag = True
+            accumulate_flag = True
+            Caller = rospy.Timer(rospy.Duration(0.2),findTag)
+            rospy.sleep(7)#sleep?? want to let the timer run and the bot spin, but stop both after 7 seconds
+            Caller.shutdown()
         else:
             accumulate_flag = False    
 

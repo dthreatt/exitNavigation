@@ -52,7 +52,7 @@ def termination():
 
     #send first goal and check if satisfactory for termination
     client.send_goal(goalpoint)
-    threshold = 0.35
+    threshold = 0.5
     if(probability > threshold):
         rospy.signal_shutdown("Exit threshold reached. Terminating")
 
