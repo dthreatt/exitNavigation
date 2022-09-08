@@ -473,7 +473,7 @@ def handle_exit_request(req):
     plt.draw()
     plt.pause(0.00000001)
     
-    # plt.show()
+    plt.show()
 
 
     #plt.figure(2)
@@ -481,9 +481,9 @@ def handle_exit_request(req):
     #plt.colorbar()
     #plt.draw()
     #plt.pause(0.0000000000000000000001)
-    plt.show()
+    #plt.show()
 
-    #saveDir='home/maps/'
+    #saveDir='/home/maps/'
     #if not os.path.exists(saveDir):
     #    os.makedirs(saveDir)
     #global round_cnt
@@ -507,6 +507,7 @@ def handle_exit_request(req):
     exitpoint = [((Goalpoint[1]-64)*(18/128))+trans[0],((Goalpoint[0]-64)*(18/128))+trans[1]]#the goal is returned on the local map and needs to be turned into meters for move base
     #grid cells into meters relative to robot. Added to robots position relative to origin, to get goal relative to origin
     print(exitpoint,"the predicted goal in meters")
+    #global round_cnt
     #round_cnt += 1
     return ExitRequestResponse(exitpoint[0],exitpoint[1],prob,segmented_OccGrid,heat_OccGrid,Goalpoint[1],Goalpoint[0])
 
