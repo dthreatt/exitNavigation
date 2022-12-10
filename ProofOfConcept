@@ -1,0 +1,82 @@
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+import imutils
+
+def image_normalize(img):
+    img_out=img.copy()
+    v_img=img.reshape(-1)
+    img_max=max(v_img)
+    img_min=min(v_img)
+    return (img_out-img_min)/(img_max-img_min)
+
+def imagesc(title,img):
+    cv2.imshow(title,image_normalize(img))
+
+img = (cv2.imread('images/labmap.png'))
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img = 1.-image_normalize(img) #moved this from the imread line that tron made
+img=img.astype(float)
+
+n = 9 #num filters
+ksize = 33  #Use size that makes sense to the image and feature size. Large may not be good. 
+#On the synthetic image it is clear how ksize affects imgae (try 5 and 50)d
+sigma = 5 #Large sigma on small features will fully miss the features. 
+thetas = np.empty(n)
+for i in range(n):
+    thetas[i] = i*1/n*np.pi/2
+
+lamda = np.pi#1*np.pi/4  #1/4 works best for angled. 
+gamma=1#0.9  #Value of 1 defines spherical. Calue close to 0 has high aspect ratio
+#Value of 1, spherical may not be ideal as it picks up features from other regions.
+phi = 0/2#0.8  #Phase offset. I leave it to 0. (For hidden pic use 0.8)
+
+#Tron's values, ksize = 33, sigma = 5, lambda = 3*np.pi, gamma = 1, phi = 0/2
+#Laura used magic to pick lambda = pi out of the hat
+
+kernals = np.empty(n,dtype=object)
+for i in range(n):
+    kernals[i] = cv2.getGaborKernel((ksize, ksize), sigma, thetas[i], lamda, gamma, phi, ktype=cv2.CV_32F)
+
+fimgs = np.empty(n,dtype=object)
+#fimgs2 = np.empty(n,dtype=object)
+#fimgs3 = np.empty(n,dtype=object)
+#fimgs4 = np.empty(n,dtype=object)
+#fimgs5 = np.empty(n,dtype=object)
+for i in range(n):
+    fimgs[i] = cv2.filter2D(src=img, ddepth=-1, kernel=kernals[i])
+    #fimgs2[i] = cv2.filter2D(src=fimgs[i], ddepth=-1, kernel=kernals[i])
+    #fimgs3[i] = cv2.filter2D(src=fimgs2[i], ddepth=-1, kernel=kernals[i])
+    #fimgs4[i] = cv2.filter2D(src=fimgs3[i], ddepth=-1, kernel=kernals[i])
+    #fimgs5[i] = cv2.filter2D(src=fimgs4[i], ddepth=-1, kernel=kernals[i])
+
+threshed = np.empty(n,dtype=object)
+for i in range(n):
+    retval, threshed[i] = cv2.threshold(image_normalize(fimgs[i]),0.75,1,cv2.THRESH_BINARY)
+
+maxResponse = sum(threshed[0].reshape(-1))
+responses = np.empty(n)
+responses[0] = maxResponse
+bestFilter = 0
+#imagesc('Filtered with theta = 0', fimgs[0])
+#cv2.imshow('thresh of 0 ',threshed[0])
+#imagesc('Filtered with theta = 0 5 times', fimgs5[0])
+for i in range(1,n):
+    responses[i] = sum(threshed[i].reshape(-1))
+    if responses[i] > maxResponse:
+        maxResponse = responses[i]
+        bestFilter = i*10
+    #imagesc('Filtered with theta = '+str(i*10), fimgs[i])
+    #cv2.imshow('thresh of theta = '+str(i*10),threshed[i])
+    #imagesc('Filtered with theta = '+str(i*10)+' 5 times', fimgs5[i])
+
+print('The best filter response was from theta = '+str(bestFilter)+' and its response was '+str(maxResponse))
+print('Here are all the responses', responses)
+
+rotatedImg = imutils.rotate(img, angle=bestFilter)
+cv2.imshow('Rotated image in imshow',rotatedImg)
+#imagesc('Rotated based on the highest response which was theta = '+str(bestFilter), rotatedImg)
+
+
+cv2.waitKey()
+
