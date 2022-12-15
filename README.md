@@ -13,6 +13,9 @@ Exit navigation is the primary package in the workspace. Make sure your workspac
 Launch and params are folders within the Jackal Navigation package by Clearpath Robotics that I have edited to create custom settings for.
 
 
+
+
+
 Commands copied from the ros.org post for getting the python3 workspace working:
 
 Install some prerequisites to use Python3 with ROS.
