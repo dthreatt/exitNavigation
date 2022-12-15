@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import imutils
+from PIL import Image
 
 def image_normalize(img):
     img_out=img.copy()
@@ -17,7 +18,7 @@ img = (cv2.imread('images/labmap.png'))
 img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 img = 1.-image_normalize(img) #moved this from the imread line that tron made
 img=img.astype(float)
-
+cv2.imshow('original img',img)
 n = 9 #num filters
 ksize = 33  #Use size that makes sense to the image and feature size. Large may not be good. 
 #On the synthetic image it is clear how ksize affects imgae (try 5 and 50)d
@@ -34,48 +35,65 @@ phi = 0/2#0.8  #Phase offset. I leave it to 0. (For hidden pic use 0.8)
 #Tron's values, ksize = 33, sigma = 5, lambda = 3*np.pi, gamma = 1, phi = 0/2
 #Laura used magic to pick lambda = pi out of the hat
 
-kernals = np.empty(n,dtype=object)
+#kernals = np.empty(n,dtype=object)
+#fimgs = np.empty(n,dtype=object)
+threshed = np.empty(n,dtype=object)
 for i in range(n):
-    kernals[i] = cv2.getGaborKernel((ksize, ksize), sigma, thetas[i], lamda, gamma, phi, ktype=cv2.CV_32F)
+    kernal = cv2.getGaborKernel((ksize, ksize), sigma, thetas[i], lamda, gamma, phi, ktype=cv2.CV_32F)
+    kernel_resized = cv2.resize(kernal, (400, 400))
+    cv2.imwrite('images/keptFilteredImages/kernal'+str(i*10)+'theta.jpg', kernel_resized)  
+    cv2.imshow('kernal theta ' + str(i*10),kernel_resized)
+    fimg = cv2.filter2D(src=img, ddepth=-1, kernel=kernal)
+    retval, threshed[i] = cv2.threshold(image_normalize(fimg),0.75,1,cv2.THRESH_BINARY)
+#cv2.imshow('kernal theta ' + str(i*10),kernel_resized)
 
-fimgs = np.empty(n,dtype=object)
 #fimgs2 = np.empty(n,dtype=object)
 #fimgs3 = np.empty(n,dtype=object)
 #fimgs4 = np.empty(n,dtype=object)
 #fimgs5 = np.empty(n,dtype=object)
-for i in range(n):
-    fimgs[i] = cv2.filter2D(src=img, ddepth=-1, kernel=kernals[i])
+#for i in range(n):
+    #fimgs[i] = cv2.filter2D(src=img, ddepth=-1, kernel=kernals[i])
     #fimgs2[i] = cv2.filter2D(src=fimgs[i], ddepth=-1, kernel=kernals[i])
     #fimgs3[i] = cv2.filter2D(src=fimgs2[i], ddepth=-1, kernel=kernals[i])
     #fimgs4[i] = cv2.filter2D(src=fimgs3[i], ddepth=-1, kernel=kernals[i])
     #fimgs5[i] = cv2.filter2D(src=fimgs4[i], ddepth=-1, kernel=kernals[i])
 
-threshed = np.empty(n,dtype=object)
-for i in range(n):
-    retval, threshed[i] = cv2.threshold(image_normalize(fimgs[i]),0.75,1,cv2.THRESH_BINARY)
+
+#for i in range(n):
+    #retval, threshed[i] = cv2.threshold(image_normalize(fimgs[i]),0.75,1,cv2.THRESH_BINARY)
 
 maxResponse = sum(threshed[0].reshape(-1))
 responses = np.empty(n)
 responses[0] = maxResponse
 bestFilter = 0
 #imagesc('Filtered with theta = 0', fimgs[0])
-#cv2.imshow('thresh of 0 ',threshed[0])
+cv2.imshow('thresh of 0 ',threshed[0])
 #imagesc('Filtered with theta = 0 5 times', fimgs5[0])
 for i in range(1,n):
     responses[i] = sum(threshed[i].reshape(-1))
     if responses[i] > maxResponse:
         maxResponse = responses[i]
         bestFilter = i*10
+    cv2.imwrite('images/keptFilteredImages/theta'+str(i*10)+'threholded.jpg', threshed[i])
     #imagesc('Filtered with theta = '+str(i*10), fimgs[i])
-    #cv2.imshow('thresh of theta = '+str(i*10),threshed[i])
+    cv2.imshow('thresh of theta = '+str(i*10),threshed[i])
     #imagesc('Filtered with theta = '+str(i*10)+' 5 times', fimgs5[i])
 
 print('The best filter response was from theta = '+str(bestFilter)+' and its response was '+str(maxResponse))
 print('Here are all the responses', responses)
-
-rotatedImg = imutils.rotate(img, angle=bestFilter)
-cv2.imshow('Rotated image in imshow',rotatedImg)
+center=(img.shape[0]/2.,img.shape[1]/2.)
+cvRotatedImg = cv2.warpAffine(img,cv2.getRotationMatrix2D(center,10,1),img.shape[0:2])
+cv2.imshow('cv Rotated image',cvRotatedImg)
+pillowImage = Image.fromarray(img)
+pillowImage = pillowImage.rotate(10)
+pillowImage.show
+numpyImg = np.asarray(img)
+rotatedImg = imutils.rotate(numpyImg, angle=10)
+#cv2.imshow('imutils Rotated image in imshow',rotatedImg)
+#cv2.imshow('Rotated pillow image in imshow',np.asarray(pillowImage))
+#cv2.imshow('Rotated pillow image in imshow',pillowImage) doesnt work
 #imagesc('Rotated based on the highest response which was theta = '+str(bestFilter), rotatedImg)
+cv2.imwrite('images/keptFilteredImages/rotated'+str(i*10)+'image.jpg', cvRotatedImg)
 
 
 cv2.waitKey()
