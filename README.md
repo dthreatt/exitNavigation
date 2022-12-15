@@ -17,19 +17,19 @@ Commands copied from the ros.org post for getting the python3 workspace working:
 
 Install some prerequisites to use Python3 with ROS.
 
-sudo apt update
-sudo apt install python3-catkin-pkg-modules python3-rospkg-modules python3-empy
+-sudo apt update
+-sudo apt install python3-catkin-pkg-modules python3-rospkg-modules python3-empy
 
 
 Prepare catkin workspace
 
-mkdir -p ~/catkin_ws/src; cd ~/catkin_ws
-catkin_make
-source devel/setup.bash
-wstool init
-wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v 0.6.5
-wstool up
-rosdep install --from-paths src --ignore-src -y -r
+-mkdir -p ~/catkin_ws/src; cd ~/catkin_ws
+-catkin_make
+-source devel/setup.bash
+-wstool init
+-wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v 0.6.5
+-wstool up
+-rosdep install --from-paths src --ignore-src -y -r
 
 
 Finally compile for Python 3
