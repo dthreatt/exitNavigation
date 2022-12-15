@@ -24,17 +24,11 @@ sudo apt install python3-catkin-pkg-modules python3-rospkg-modules python3-empy
 Prepare catkin workspace
 
 mkdir -p ~/catkin_ws/src; cd ~/catkin_ws
-
 catkin_make
-
 source devel/setup.bash
-
 wstool init
-
 wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v 0.6.5
-
 wstool up
-
 rosdep install --from-paths src --ignore-src -y -r
 
 
