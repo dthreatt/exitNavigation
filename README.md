@@ -10,6 +10,8 @@ The configs folder and the accessories.urdf.xacro are from the Jackal descriptio
 
 Exit navigation is the primary package in the workspace. Make sure your workspace is running with python 3. You will need to add a folder called learning with the deep learning model as it was too big to upload to github. To get a python 3 workspace working on Ubuntu 18.04, you may need to perform some additional steps found here https://answers.ros.org/question/326226/importerror-dynamic-module-does-not-define-module-export-function-pyinit__tf2/. This includes installing empy, and setting up a separate version of TF. Commands copied below in case the link is lost in the future.
 
+The scripts folder is from the jackal robot, and is mostly a copy of the one in the exitnavigation folder, but includes some additional code for the gabor filter that is necessary for it to run properly on the robot.
+
 Launch and params are folders within the Jackal Navigation package by Clearpath Robotics that I have edited to create custom settings for.
 
 
